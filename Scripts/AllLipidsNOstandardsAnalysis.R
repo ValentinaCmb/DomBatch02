@@ -111,18 +111,18 @@ T01 <- LSdata01 %>%
 
 
 # now that CD has run we want to plot this data and see what makes sense
+#    !!! replace Batch01 with Batch02 accordingly in the following script !!!!!!!
 
+CDdata <- read_tsv("Data/CompDiscoBatch02Results12Dec.csv", col_types = cols(Name = col_character()))
 
-CDdata <- read_tsv("Data/CompDiscoBatch01Results11Dec.csv", col_types = cols(Name = col_character()))
-
-key <- read_csv("Data/Table_CD28Nov.csv", col_types = cols(Name = col_character())) %>%  
+key <- read_csv("Data/Table_CD11Dec.csv", col_types = cols(Name = col_character())) %>%  
   select(Name, Class, FA, `FA Group Key`) %>% 
   unique()
   # rename(LSFormula= Formula) %>% 
   # mutate(`FA Group Key` = str_remove(str_replace(`FA Group Key`, ":", "_"), ":00"))
    
 
-CDdata_gathered06 <- CDdata %>% 
+CDdata_gathered06B2 <- CDdata %>% 
   mutate(Name = gsub("Oleic acid", "FA(18:1)", x = Name)) %>% ###use quotes not the other thing (back thingy``)
   gather(Sample, Area, contains("Area: ")) %>%
   group_by(Name, Formula, `Molecular Weight`, `RT [min]`) %>%
@@ -148,72 +148,72 @@ CDdata_gathered06 <- CDdata %>%
   # mutate (pop = (str_extract(Sample, "\\w+_\\w+"))) %>% 
   # separate(pop, c("population", "sample"), sep="(?<=[A-Za-z])(?=[0-9])")
   
-CDdata_gathered06 
-write.csv(CDdata_gathered06, "./CDdata_gathered06.csv", row.names =  FALSE)
+CDdata_gathered06B2 
+write.csv(CDdata_gathered06B2, "./CDdata_gathered06B2.csv", row.names =  FALSE)
 
 
 #lipids.to.keep <- c("DG", "TG", "PC", "PI", "PA", "PG", "PS", "SM", "LPC", "FA","PE", "Cer")
 
-res <-  CDdata_gathered06 %>% 
+res <-  CDdata_gathered06B2 %>% 
   #filter(grepl(pattern = paste(lipids.to.keep, collapse = "|"), Name)) %>% 
   filter(!grepl("Similar", Name))
            
-Batch01 <- res %>% 
+Batch02 <- res %>% 
   select(Name, Formula, Class, `FA Group Key`, TC, DB, count, `Molecular Weight`, Sample, `RT [min]`, Area, pqn, Area2)
 
-write_csv(Batch01, path = "Data/Batch01.csv")
-view(Batch01)
+write_csv(Batch02, path = "Data/Batch02.csv")
+view(Batch02)
 
 
 # Pre-final adjustment (still need to remove NA)
 
-p1 <- Batch01 %>% 
+p1B2 <- Batch02 %>% 
   group_by(Class) %>% 
   rename( `Lipid species` = `FA Group Key`)  
  # filter(!grepl("e|p|t|Q|d|O", `Lipid species`)) #This removes letters from the Lipid Species and thus DB IF run
 
-write_csv(p1, path = "Data/p1.csv")
+write_csv(p1B2, path = "Data/p1B2.csv")
 
 # PLOTS: 
-# First plot with areas, not conc yet ##
-# this gives the boxplot w title "Batch01" 
+# First plot with areas, not conc yet;
+# this gives the boxplot w title "Batch02", not a nice plot, only good for a 1st check
 
-batch01.plot <-  ggplot(p1, aes(`Lipid species`, log(Area))) +
+batch02.plot <-  ggplot(p1B2, aes(`Lipid species`, log(Area))) +
   geom_boxplot(aes(fill= `Lipid species`)) 
   #facet_wrap(~Class, scales ="free")
 
-batch01.plot +
+batch02.plot +
   theme(legend.position ="none", 
         axis.text.x = element_text(angle = 45, vjust =0.5)) +
-  labs( title = paste("Batch01"))
+  labs( title = paste("Batch02"))
 
 #### plot normalised data 
 
-batch01.plot.pqn <-  ggplot(p1, aes(`Class`, log(Area2))) +
+batch02.plot.pqn <-  ggplot(p1B2, aes(`Class`, log(Area2))) +
   geom_boxplot(aes(fill= `Lipid species`)) 
   #facet_wrap(~Class, scales ="free")
 
-batch01.plot.pqn +
+batch02.plot.pqn +
   theme(#legend.position ="none", 
         axis.text.x = element_text(angle = 45, vjust =0.5)) +
-  labs( title = paste("Batch01 - normalised data"))
+  labs( title = paste("Batch02 - normalised data"))
 
-# Need to add populations  by Join the table (Batch01StandardsNew) containing
-#       the STANDARDS for Batch01   (run with the compounds in the LCMS)                
-#                 with  Batch01Results i.e. to the compunds of Batch01                 
+# Need to add populations  by Joining the table (Batch02Standards) containing
+# the STANDARDS for Batch01   (run with the compounds in the LCMS)                
+#                 with  Batch02Results i.e. to the compunds of Batch02                 
 #                                                          #
 ##%######################################################%##
 
-Batch01Standards <- read_csv("./Data/Batch01StandardsNew.csv")
-#view(Batch01Standards)
+Batch02Standards <- read_csv("./Data/Batch02Standards.csv")
+#view(Batch02Standards)
 
-batch01.standards <- Batch01Standards %>% 
+batch02.standards <- Batch02Standards %>% 
   select(Class, StandardsName, Conc, slope, intercept)
 
 # join the 2 tables, in order to add the populations 
 
-batch01.values <-  p1 %>% 
-  left_join(batch01.standards, by = "Class")  %>% 
+batch02.values <-  p1B2 %>% 
+  left_join(batch02.standards, by = "Class")  %>% 
   mutate(conc_mgmL_compounds = as.numeric(exp((log(Area) - intercept)/ slope))) %>% 
   select(-slope, - intercept) %>% 
   #filter(!Class %in% c("LPE", "LPI", "LPS", "PA")) %>% 
@@ -221,20 +221,20 @@ batch01.values <-  p1 %>%
 
 #  this below excludes the plasmalogen but not the Ceramides and the SPHM (kept by deleting d and t from grepl)
 
-batch01.values.noplasm <-  batch01.values  %>% 
+batch02.values.noplasm <-  batch02.values  %>% 
     filter(!grepl("e|p|Q|O", `Lipid species`))
 
 # split the Sample column in population w domestication and sample number
 
-batch01.pop <- batch01.values.noplasm %>% 
+batch02.pop <- batch02.values.noplasm %>% 
         mutate (pop = (str_extract(Sample, "\\w+_\\w+"))) %>% 
         separate(pop, c("population", "sample"), sep="(?<=[A-Za-z])(?=[0-9])")
   
  
-# plot based on areas not on concentrations (although it is in the name, please disregard it)
+# this plot (still ugly) is based on areas not on concentrations (although it is in the name, please disregard it)
 
-batch01.plot.conc <-  ggplot(batch01.pop, aes(`Class`, log(pqn))) + 
-  geom_boxplot(aes(fill= `population`), position = position_dodge(width=0.75)) +
+batch01.plot.conc <-  ggplot(batch02.pop, aes(`Class`, log(pqn))) + 
+  geom2boxplot(aes(fill= `population`), position = position_dodge(width=0.75)) +
   #facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
     plot.caption = element_text(vjust = 1), 
@@ -242,27 +242,27 @@ batch01.plot.conc <-  ggplot(batch01.pop, aes(`Class`, log(pqn))) +
     axis.text.x = element_text(angle = 40), 
    # panel.background = element_rect(fill = "palegoldenrod"), 
     legend.position = "right") +
-    labs(title = "Batch01: lipid classes", 
+    labs(title = "Batch02: lipid classes", 
     y = "log2 norm. area") 
 
-batch01.plot.conc
+batch02.plot.conc
 
 
 #write_csv(batch01.plot.conc.pqn, path = "Data/batch01.plot.conc.pqn.csv")
 
 # sum the areas belonging to the same class of lipids (i.e. the areas of the different species)
 
-batch01.sum <-  batch01.pop %>% 
+batch02.sum <-  batch02.pop %>% 
   group_by(Class, sample) %>%  
   mutate(sumpqn = sum(pqn))              
             #sum_conc_mgml = sum(conc_mgmL_compounds))
 
-batch01.sum #this is THE data for statistical analysis of ALL lipids based on normalised areas
-write_csv(batch01.sum, path = "Data/batch01.sum.csv") # file saved :)
+batch02.sum #this is THE data for statistical analysis of ALL lipids based on normalised areas
+write_csv(batch02.sum, path = "Data/batch02.sum.csv") # file saved :)
 
-# plot
+# NICE plot finally!
 
-batch01.plot.all <-  ggplot(batch01.sum, aes(`Class`, log(sumpqn)))+
+batch02.plot.all <-  ggplot(batch02.sum, aes(`Class`, log(sumpqn)))+
   geom_boxplot(aes(fill = `population`), width =1) +
   scale_fill_brewer(palette = "Paired") +
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -271,7 +271,7 @@ batch01.plot.all <-  ggplot(batch01.sum, aes(`Class`, log(sumpqn)))+
         axis.text.x = element_text(angle = 40), 
         panel.background = element_rect(fill = "grey91"), 
         legend.position = "right") +
-  labs(title = "Batch 01 Lipid Classes", y = "Log normalised area", x = "Lipid Classes") + 
+  labs(title = "Batch 02 Lipid Classes", y = "Log normalised area", x = "Lipid Classes") + 
   theme(axis.text = element_text(size = 8, face = "bold"), 
         axis.text.x = element_text(size = 10), 
         axis.text.y = element_text(size = 10), 
@@ -279,7 +279,7 @@ batch01.plot.all <-  ggplot(batch01.sum, aes(`Class`, log(sumpqn)))+
         legend.title = element_text(size = 11)) 
         #theme(legend.position = c(0.12, 0.9), legend.direction = "horizontal") 
 
-batch01.plot.all
+batch02.plot.all
 
 
 
