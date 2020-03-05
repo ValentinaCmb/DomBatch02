@@ -7,6 +7,7 @@ library(RColorBrewer)
 library(modelr)
 library(kableExtra)
 library(ggThemeAssist)
+library(stringr)
 
 
 getwd()
@@ -125,6 +126,7 @@ key <- read_csv("Data/Table_CD11Dec.csv", col_types = cols(Name = col_character(
 CDdata_gathered06B2 <- CDdata %>% 
   mutate(Name = gsub("Oleic acid", "FA(18:1)", x = Name)) %>% ###use quotes not the other thing (back thingy``)
   gather(Sample, Area, contains("Area: ")) %>%
+  mutate(Sample = str_replace(Sample, regex("\\-", ignore_case = TRUE), "_")) %>% 
   group_by(Name, Formula, `Molecular Weight`, `RT [min]`) %>%
   filter(!is.na(Area),
          `RT [min]` < 25,
@@ -254,8 +256,15 @@ batch02.plot.conc
 
 batch02.sum <-  batch02.pop %>% 
   group_by(Class, sample) %>%  
-  mutate(sumpqn = sum(pqn))              
-            #sum_conc_mgml = sum(conc_mgmL_compounds))
+  mutate(sumpqn = sum(pqn)) %>% 
+  mutate(population = tolower(population))
+         
+         
+ unique(batch02.sum$population)        
+testNA <- batch02.sum %>% 
+  filter(population == " ")
+  
+#sum_conc_mgml = sum(conc_mgmL_compounds))
 
 batch02.sum #this is THE data for statistical analysis of ALL lipids based on normalised areas
 write_csv(batch02.sum, path = "Data/batch02.sum.csv") # file saved :)
