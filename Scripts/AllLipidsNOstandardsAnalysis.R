@@ -261,8 +261,7 @@ batch02.sum <-  batch02.pop %>%
          
          
  unique(batch02.sum$population)        
-testNA <- batch02.sum %>% 
-  filter(population == " ")
+
   
 #sum_conc_mgml = sum(conc_mgmL_compounds))
 
