@@ -151,7 +151,7 @@ CDdata_gathered06B2 <- CDdata %>%
   # separate(pop, c("population", "sample"), sep="(?<=[A-Za-z])(?=[0-9])")
   
 CDdata_gathered06B2 
-write.csv(CDdata_gathered06B2, "./CDdata_gathered06B2.csv", row.names =  FALSE)
+write_csv(CDdata_gathered06B2, path ="Data/CDdata_gathered06B2.csv")
 
 
 #lipids.to.keep <- c("DG", "TG", "PC", "PI", "PA", "PG", "PS", "SM", "LPC", "FA","PE", "Cer")
