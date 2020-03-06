@@ -123,7 +123,7 @@ key <- read_csv("Data/Table_CD11Dec.csv", col_types = cols(Name = col_character(
   # mutate(`FA Group Key` = str_remove(str_replace(`FA Group Key`, ":", "_"), ":00"))
   # 
 
-CDdata_gathered06 <- CDdata %>% 
+CDdata_gathered06B2 <- CDdata %>% 
   mutate(Name = gsub("Oleic acid", "FA(18:1)", x = Name)) %>% ###use quotes not the other thing (back thingy``)
   gather(Sample, Area, contains("Area: ")) %>%
   mutate(Sample = str_replace(Sample, regex("\\-", ignore_case = TRUE), "_")) %>% 
