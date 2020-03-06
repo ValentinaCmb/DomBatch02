@@ -1,5 +1,7 @@
 # Packages ----
 
+#Load require packages
+
 library("addinslist")
 library(tidyverse)
 library(readr)
@@ -9,7 +11,6 @@ library(kableExtra)
 library(ggThemeAssist)
 
 
-getwd()
 
 # LS = Lipid Search Software i.e. table of lipids etc obtained from LipidSearch
 # CD =  Compund Discoverer
@@ -113,9 +114,9 @@ T01 <- LSdata01 %>%
 # now that CD has run we want to plot this data and see what makes sense
 
 
-CDdata <- read_tsv("Data/CompDiscoBatch01Results11Dec.csv", col_types = cols(Name = col_character()))
+CDdata <- read_tsv("Data/CompDiscoBatch02Results12Dec.csv", col_types = cols(Name = col_character()))
 
-key <- read_csv("Data/Table_CD28Nov.csv", col_types = cols(Name = col_character())) %>%  
+key <- read_csv("Data/Table_CD11Dec.csv", col_types = cols(Name = col_character())) %>%  
   select(Name, Class, FA, `FA Group Key`) %>% 
   unique()
   # rename(LSFormula= Formula) %>% 
@@ -125,6 +126,7 @@ key <- read_csv("Data/Table_CD28Nov.csv", col_types = cols(Name = col_character(
 CDdata_gathered06 <- CDdata %>% 
   mutate(Name = gsub("Oleic acid", "FA(18:1)", x = Name)) %>% ###use quotes not the other thing (back thingy``)
   gather(Sample, Area, contains("Area: ")) %>%
+  mutate(Sample = str_replace(Sample, regex("\\-", ignore_case = TRUE), "_")) %>% 
   group_by(Name, Formula, `Molecular Weight`, `RT [min]`) %>%
   filter(!is.na(Area),
          `RT [min]` < 25,
@@ -149,62 +151,53 @@ CDdata_gathered06 <- CDdata %>%
   # separate(pop, c("population", "sample"), sep="(?<=[A-Za-z])(?=[0-9])")
   # 
  
-CDdata_gathered06 
-write.csv(CDdata_gathered06, "./CDdata_gathered06.csv", row.names =  FALSE)
+CDdata_gathered06B2
+write_csv(CDdata_gathered06B2, path ="Data/CDdata_gathered06B2.csv")
 
 
 lipids.to.keep <- c("DG", "TG", "PC", "PI", "PA", "PG", "PS", "SM", "LPC", "FA","PE", "Cer")
 
-res <-  CDdata_gathered06 %>% 
+res <-  CDdata_gathered06B2 %>% 
   filter(grepl(pattern = paste(lipids.to.keep, collapse = "|"), Name)) %>% 
   filter(!grepl("Similar", Name))
            
-Batch01 <- res %>% 
+Batch02.selected <- res %>% 
   select(Name, Formula, Class, `FA Group Key`, TC, DB, count, `Molecular Weight`, Sample, `RT [min]`, Area, pqn, Area2)
 
-write_csv(Batch01, path = "Data/Batch01.csv")
-view(Batch01)
-
-# ____ THESE 2 BELOW are NOT necessarily NEEDED, only if you want to focus on certauinn classes, otherwise skip _____#
-PC <- CDdata_gathered %>% 
-  filter(Class == "PC")
-
-ggplot(PC, aes(`RT [min]`, `Molecular Weight`, colour = DB)) +
-  geom_point()
-#______________________________________________________________ #
-
-
+write_csv(Batch02.selected, path = "Data/Batch02.selected.csv")
+view(Batch02.selected)
+unique(Batch02.selected$Class)
 # Pre-final adjustment (still need to remove NA)
 
-p1 <- Batch01 %>% 
+p1.selected <- Batch02.selected %>% 
   group_by(Class) %>% 
   rename( `Lipid species` = `FA Group Key`) %>% 
   filter(!grepl("e|p|t|Q|d|O", `Lipid species`))
 
-write_csv(p1, path = "Data/p1.csv")
+write_csv(p1.selected, path = "Data/p1.selected.csv")
 
 # PLOTS: 
 # First plot with areas, not conc yet ##
 # this gives the boxplot w title "Batch01" 
 
-batch01.plot <-  ggplot(p1, aes(`Lipid species`, log(Area))) +
+batch02selected.plot <-  ggplot(p1.selected, aes(`Lipid species`, log(Area))) +
   geom_boxplot(aes(fill= `Lipid species`)) +
   facet_wrap(~Class, scales ="free")
 
-batch01.plot +
+batch02selected.plot +
   theme(legend.position ="none", 
         axis.text.x = element_text(angle = 45, vjust =0.5)) +
-  labs( title = paste("Batch01"))
+  labs( title = paste("Batch02"))
 
 #### plot normalised data 
-batch01.plot.pqn <-  ggplot(p1, aes(`Lipid species`, log(pqn))) +
+batch02selected.plot.pqn <-  ggplot(p1.selected, aes(`Lipid species`, log(pqn))) +
   geom_boxplot(aes(fill= `Lipid species`)) +
   facet_wrap(~Class, scales ="free")
 
-batch01.plot.pqn +
+batch02selected.plot.pqn +
   theme(legend.position ="none", 
         axis.text.x = element_text(angle = 45, vjust =0.5)) +
-  labs( title = paste("Batch01 - normalised data"))
+  labs( title = paste("Batch02 - normalised data"))
                                                           
 ##%######################################################%##
 #                                                          #
@@ -216,36 +209,36 @@ batch01.plot.pqn +
 #                                                          #
 ##%######################################################%##
 
-Batch01Standards <- read_csv("./Data/Batch01StandardsNew.csv")
-view(Batch01Standards)
+Batch02Standards <- read_csv("./Data/Batch02Standards.csv")
+view(Batch02Standards)
 
-batch01.standards <- Batch01Standards %>% 
+batch02.standards.selected <- Batch02Standards %>% 
   select(Class, StandardsName, Conc, slope, intercept)
 
 
 # calculate the concentrations of the compounds in Batch01 based on the standards in Batch01
 
-batch01.values <-  p1 %>% 
-  left_join(batch01.standards, by = "Class")  %>% 
+batch02.values.selected <-  p1.selected %>% 
+  left_join(batch02.standards.selected, by = "Class")  %>% 
   mutate(conc_mgmL_compounds = as.numeric(exp((log(Area) - intercept)/ slope))) %>% 
   select(-slope, - intercept) %>% 
   filter(!Class %in% c("LPE", "LPI", "LPS", "PA")) %>% 
   filter(!is.na(Class))
 
 #check elimination of those lipids with unique
-unique(batch01.values$Class)
+unique(batch02.values.selected$Class)
 
-batch01.values
+batch02.values.selected
 
 
 # split the Sample column in population w domestication and sample number
 
-batch01.pop <- batch01.values %>% 
+batch02.selected.pop <- batch02.values.selected %>% 
         mutate (pop = (str_extract(Sample, "\\w+_\\w+"))) %>% 
-        separate(pop, c("population", "sample"), sep="(?<=[A-Za-z])(?=[0-9])")
+        separate(pop, c("population", "sample"), sep="(?<=[A-Za-z])(?=[0-9])") %>% 
+  mutate(population = tolower(population))
   
- 
-unique(batch01.pop$Class)
+ unique(batch02.selected.pop$Class)
 
 #str_extract("AB:C_N01.DE", "\\w+_\\w+" )
 #unlist(str_split("pop","(?<=[A-Za-z])(?=[0-9])"))
@@ -262,10 +255,9 @@ unique(batch01.pop$Class)
 #                                                         #
 ##%######################################################%##
 
-# ! batch01.pop has the population now
+# ! batch02.pop has the population now
 
-
-batch01.plot.conc <-  ggplot(batch01.pop, aes(`Lipid species`, log(conc_mgmL_compounds))) + 
+batch02.selected.plot.conc <-  ggplot(batch02.selected.pop, aes(`Lipid species`, log(conc_mgmL_compounds))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -273,16 +265,14 @@ batch01.plot.conc <-  ggplot(batch01.pop, aes(`Lipid species`, log(conc_mgmL_com
     axis.text = element_text(size = 7, vjust = -0.25), 
     axis.text.x = element_text(angle = 40), 
     panel.background = element_rect(fill = "palegoldenrod"), 
-    legend.position = "right") +labs(title = "Batch01: lipid species concentrations", 
+    legend.position = "right") +labs(title = "Batch02: lipid species concentrations", 
     y = "log concentrations") 
 
-batch01.plot.conc
-
-
+batch02.selected.plot.conc
 
 ###normalised area results -  NOT for concentration
 
-batch01.plot.conc.pqn <-  ggplot(batch01.pop, aes(`Lipid species`, log(pqn))) + 
+batch02.selected.plot.conc.pqn <-  ggplot(batch02.selected.pop, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -290,34 +280,36 @@ batch01.plot.conc.pqn <-  ggplot(batch01.pop, aes(`Lipid species`, log(pqn))) +
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-batch01.plot.conc.pqn
-write_csv(batch01.plot.conc.pqn, path = "Data/batch01.plot.conc.pqn.csv")
+batch02.selected.plot.conc.pqn
+write_csv(batch02.selected.pop, path = "Data/batch02.selected.pop.csv")
 
+# SINGLE LIPIDS CLASSES
 
-FAnorm.area <- batch01.pop %>% 
-  filter(Class == "FA")
+# NO FA present
+#FAnorm.area <- batch02.selected.pop %>% 
+#  filter(Class == "FA")
 
-FA.batch01.plot.conc.pqn <-  ggplot(FAnorm.area, aes(`Lipid species`, log(pqn))) + 
-  geom_boxplot(aes(fill= `population`)) +
-  facet_wrap(~Class, scales ="free") + 
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
+#FA.batch02.plot.conc.pqn <-  ggplot(FAnorm.area, aes(`Lipid species`, log(pqn))) + 
+#  geom_boxplot(aes(fill= `population`)) +
+  #facet_wrap(~Class, scales ="free") + 
+#  theme(plot.subtitle = element_text(vjust = 1), 
+#        plot.caption = element_text(vjust = 1), 
+#        axis.text = element_text(size = 7, vjust = -0.25), 
+#        axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: FA lipid species normalised areas", 
-                                         y = "log(pqn)") 
+#        legend.position = "right") +labs(title = "Batch02: FA lipid species normalised areas", 
+#                                         y = "log(pqn)") 
 
-FA.batch01.plot.conc.pqn
+#FA.batch02.plot.conc.pqn
 
 
-PGnorm.area <- batch01.pop %>% 
+PGnorm.area <- batch02.selected.pop %>% 
   filter(Class == "PG")
 
-PG.batch01.plot.conc.pqn <-  ggplot(PGnorm.area, aes(`Lipid species`, log(pqn))) + 
+PG.batch02.plot.conc.pqn <-  ggplot(PGnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -325,16 +317,16 @@ PG.batch01.plot.conc.pqn <-  ggplot(PGnorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: PG lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: PG lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-PG.batch01.plot.conc.pqn
+PG.batch02.plot.conc.pqn
 
 
-TGnorm.area <- batch01.pop %>% 
+TGnorm.area <- batch02.selected.pop %>% 
   filter(Class == "TG")
 
-TG.batch01.plot.conc.pqn <-  ggplot(TGnorm.area, aes(`Lipid species`, log(pqn))) + 
+TG.batch02.plot.conc.pqn <-  ggplot(TGnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -342,16 +334,16 @@ TG.batch01.plot.conc.pqn <-  ggplot(TGnorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: TG lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: TG lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-TG.batch01.plot.conc.pqn
+TG.batch02.plot.conc.pqn
 
 
-DGnorm.area <- batch01.pop %>% 
+DGnorm.area <- batch02.selected.pop %>% 
   filter(Class == "DG")
 
-DG.batch01.plot.conc.pqn <-  ggplot(DGnorm.area, aes(`Lipid species`, log(pqn))) + 
+DG.batch02.plot.conc.pqn <-  ggplot(DGnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -359,16 +351,16 @@ DG.batch01.plot.conc.pqn <-  ggplot(DGnorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: DG lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: DG lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-DG.batch01.plot.conc.pqn
+DG.batch02.plot.conc.pqn
 
 
-LPCnorm.area <- batch01.pop %>% 
+LPCnorm.area <- batch02.selected.pop %>% 
   filter(Class == "LPC")
 
-LPC.batch01.plot.conc.pqn <-  ggplot(LPCnorm.area, aes(`Lipid species`, log(pqn))) + 
+LPC.batch02.plot.conc.pqn <-  ggplot(LPCnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -376,16 +368,16 @@ LPC.batch01.plot.conc.pqn <-  ggplot(LPCnorm.area, aes(`Lipid species`, log(pqn)
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: LPC lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: LPC lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-LPC.batch01.plot.conc.pqn
+LPC.batch02.plot.conc.pqn
 
 
-PCnorm.area <- batch01.pop %>% 
+PCnorm.area <- batch02.selected.pop %>% 
   filter(Class == "PC")
 
-PC.batch01.plot.conc.pqn <-  ggplot(PCnorm.area, aes(`Lipid species`, log(pqn))) + 
+PC.batch02.plot.conc.pqn <-  ggplot(PCnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -393,16 +385,16 @@ PC.batch01.plot.conc.pqn <-  ggplot(PCnorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: PC lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: PC lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-PC.batch01.plot.conc.pqn
+PC.batch02.plot.conc.pqn
 
 
-PEnorm.area <- batch01.pop %>% 
+PEnorm.area <- batch02.selected.pop %>% 
   filter(Class == "PE")
 
-PE.batch01.plot.conc.pqn <-  ggplot(PEnorm.area, aes(`Lipid species`, log(pqn))) + 
+PE.batch02.plot.conc.pqn <-  ggplot(PEnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -410,16 +402,16 @@ PE.batch01.plot.conc.pqn <-  ggplot(PEnorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: PE lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: PE lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-PE.batch01.plot.conc.pqn
+PE.batch02.plot.conc.pqn
 
 
-PInorm.area <- batch01.pop %>% 
+PInorm.area <- batch02.selected.pop %>% 
   filter(Class == "PI")
 
-PI.batch01.plot.conc.pqn <-  ggplot(PInorm.area, aes(`Lipid species`, log(pqn))) + 
+PI.batch02.plot.conc.pqn <-  ggplot(PInorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -427,16 +419,16 @@ PI.batch01.plot.conc.pqn <-  ggplot(PInorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: PI lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: PI lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-PI.batch01.plot.conc.pqn
+PI.batch02.plot.conc.pqn
 
 
-PSnorm.area <- batch01.pop %>% 
+PSnorm.area <- batch02.selected.pop %>% 
   filter(Class == "PS")
 
-PS.batch01.plot.conc.pqn <-  ggplot(PSnorm.area, aes(`Lipid species`, log(pqn))) + 
+PS.batch02.plot.conc.pqn <-  ggplot(PSnorm.area, aes(`Lipid species`, log(pqn))) + 
   geom_boxplot(aes(fill= `population`)) +
   facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
@@ -444,497 +436,20 @@ PS.batch01.plot.conc.pqn <-  ggplot(PSnorm.area, aes(`Lipid species`, log(pqn)))
         axis.text = element_text(size = 7, vjust = -0.25), 
         axis.text.x = element_text(angle = 40), 
         #panel.background = element_rect(fill = "palegoldenrod"), 
-        legend.position = "right") +labs(title = "Batch01: PS lipid species normalised areas", 
+        legend.position = "right") +labs(title = "Batch02: PS lipid species normalised areas", 
                                          y = "log(pqn)") 
 
-PS.batch01.plot.conc.pqn
+PS.batch02.plot.conc.pqn
+
+#######
+# Save the plots
 
 
-
-
-############################################################
-############################################################
-##%######################################################%##
-##                                                        ##
-##            *  SINGLE Plots  *                          ##
-##                                                        ##
-##%######################################################%##
-############################################################
-
-
-unique(batch01.pop$Class)
-#"PE"  "LPC" "DG"  "PS"  "PI"  "PG"  "TG"  "PC" 
-
-
-##%######################################################%##
-#                                                          #
-####                         FA                         ####
-#                                                          #
-##%######################################################%##
-
-batch01.FA <-  batch01.pop %>% 
-  filter(Class == "FA") 
-
-batch01.plot.FA <-  ggplot(batch01.FA, aes(`Lipid species`, log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 FA - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.FA
 ggsave("batch01.plot.FA.png", width =10, height = 8)
-###normalised FFA
-batch01.plot.FA.pqn <-  ggplot(batch01.FA, aes(`Lipid species`, log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 FA - lipid species normalised area per population", y = "log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))
-batch01.plot.FA.pqn
-
-##%######################################################%##
-#                                                          #
-####                         PE                         ####
-#                                                          #
-##%######################################################%##
-
-batch01.PE <-  batch01.pop %>% 
-  filter(Class == "PE") 
-
-batch01.plot.PE <-  ggplot(batch01.PE, aes(paste(`Lipid species`, Name), log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PE - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
 
 
-batch01.plot.PE
-##normalised area plot
-batch01.plot.PE.pqn <-  ggplot(batch01.PE, aes(paste(`Lipid species`, Name), log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PE - lipid species normalised area per population", y = "log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PE.pqn
-
-ggsave("batch01.plot.PE.png", width =10, height = 8)
-
-##%######################################################%##
-#                                                          #
-####                         LPC                        ####
-#                                                          #
-##%######################################################%##
-
-batch01.pop$Class
-
-batch01.LPC <-  batch01.pop %>% 
-  filter(Class == "LPC") 
-
-batch01.plot.LPC <-  ggplot(batch01.LPC, aes(`Lipid species`, log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-    theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-        labs(title = "Batch01 LPC - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-    theme(axis.text = element_text(size = 8, face = "bold"), 
-    axis.text.x = element_text(size = 10), 
-    axis.text.y = element_text(size = 10), 
-    legend.text = element_text(size = 11), 
-    legend.title = element_text(size = 11))  
-    
-
-batch01.plot.LPC
-ggsave("batch01.plot.LPC.png", width =10, height = 8)
-
-
-batch01.LPC <-  batch01.pop %>% 
-  filter(Class == "LPC") 
-
-batch01.plot.LPC.pqn <-  ggplot(batch01.LPC, aes(`Lipid species`, log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 LPC - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.LPC.pqn
-
-##%######################################################%##
-#                                                          #
-####                      DG plot                       ####
-#                                                          #
-##%######################################################%##
-
-batch01.DG <-  batch01.pop %>% 
-  filter(Class == "DG") %>% 
-  mutate(`Lipid species` = gsub("_0", ":", x = `Lipid species`)) ##add this earlier in your script!!
-
-batch01.plot.DG <-  ggplot(batch01.pop %>% filter(Class == "DG"), aes(paste(`Lipid species`, Name, sep = " "), log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 DAG - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.DG
 ggsave("batch01.plot.DG.png", width =10, height = 8)
 
-#pqn normalised
-batch01.plot.DG.pqn <-  ggplot(batch01.pop %>% filter(Class == "DG"), aes(paste(`Lipid species`, Name, sep = " "), log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 DAG - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
 
 
-batch01.plot.DG.pqn
-
-##%######################################################%##
-#                                                          #
-####                      PS plot                       ####
-#                                                          #
-##%######################################################%##
-
-batch01.PS <-  batch01.pop %>% 
-  filter(Class == "PS") 
-
-batch01.plot.PS <-  ggplot(batch01.PS, aes(`Lipid species`, log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PS - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PS
-ggsave("batch01.plot.PS.png", width =10, height = 8)
-
-#pqn normalised
-batch01.plot.PS.pqn <-  ggplot(batch01.PS, aes(`Lipid species`, log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PS - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PS.pqn
-
-##%######################################################%##
-#                                                          #
-####                      PI plot                       ####
-#                                                          #
-##%######################################################%##
-
-batch01.PI <-  batch01.pop %>% 
-  filter(Class == "PI") 
-
-batch01.plot.PI <-  ggplot(batch01.PI, aes(`Lipid species`, log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PI - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PI
-ggsave("batch01.plot.PI.png", width =10, height = 8)
-
-#pqn normalised
-batch01.plot.PI.pqn <-  ggplot(batch01.PI, aes(`Lipid species`, log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PI - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PI.pqn
-
-##%######################################################%##
-#                                                          #
-####                      PG plots                      ####
-#                                                          #
-##%######################################################%##
-
-batch01.PG <-  batch01.pop %>% 
-  filter(Class == "PG") 
-
-batch01.plot.PG <-  ggplot(batch01.PG, aes(`Lipid species`, log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PG - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PG
-ggsave("batch01.plot.PG.png", width =10, height = 8)
-
-#pqn normalised
-batch01.plot.PG.pqn <-  ggplot(batch01.PG, aes(`Lipid species`, log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PG - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PG.pqn
-
-##%######################################################%##
-#                                                          #
-####                      TAG plot                       ####
-#                                                          #
-##%######################################################%##
-
-#sum the TAG species
-batch01.TG.sum <-  batch01.pop %>% 
-  filter(Class == "TG") %>% 
-  group_by(Class, `Lipid species`, population, sample) %>% 
-  summarise(sumpqn = sum(pqn),
-         sum_conc_mgml = sum(conc_mgmL_compounds))
-
-batch01.plot.TG <-  ggplot(batch01.TG.sum, aes(`Lipid species`, log(sum_conc_mgml), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 TAG - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11)) 
- 
-batch01.plot.TG
-ggsave("batch01.plot.TG.png", width =15, height = 8)
-
-#pqn normalisation
-batch01.plot.TG.pqn <-  ggplot(batch01.TG.sum, aes(`Lipid species`, log(sumpqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 TAG - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11)) 
-
-batch01.plot.TG.pqn
-
-##%######################################################%##
-#                                                          #
-####                      PC plot                       ####
-#                                                          #
-##%######################################################%##
-
-batch01.PC <-  batch01.pop %>% 
-  filter(Class == "PC") 
-
-batch01.plot.PC <-  ggplot(batch01.PC, aes(`Lipid species`, log(conc_mgmL_compounds), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PC - lipid species concentrations per population", y = "Log concentrations", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PC
-ggsave("batch01.plot.PC.png", width =10, height = 8)
-
-
-#pqn normalisation
-batch01.plot.PC.pqn <-  ggplot(batch01.PC, aes(`Lipid species`, log(pqn), fill = `population`)) +
-  geom_boxplot(width =1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme(plot.subtitle = element_text(vjust = 1), 
-        plot.caption = element_text(vjust = 1), 
-        axis.text = element_text(size = 7, vjust = -0.25), 
-        axis.text.x = element_text(angle = 40), 
-        panel.background = element_rect(fill = "grey91"), 
-        legend.position = "right") +
-  labs(title = "Batch01 PC - lipid species normalised area per population", y = "Log(pqn)", x = "Lipid species (Number of carbon _ Number of double bonds)") + 
-  theme(axis.text = element_text(size = 8, face = "bold"), 
-        axis.text.x = element_text(size = 10), 
-        axis.text.y = element_text(size = 10), 
-        legend.text = element_text(size = 11), 
-        legend.title = element_text(size = 11))  
-
-
-batch01.plot.PC.pqn
-# KABLE ###############################
-batch01.table <- batch01.values %>% 
-  kable() %>% 
-  kable_styling()
-
-batch01.table
-#######################################
-
-# Substituting NA in Oleic Acid: Lipid species, TC, DB (in p1)
-
-#ylab("Number of Flies Died")+xlab("Number of hours after initiation of desiccation stress")+ylim(0,80)+#ylim and xlim fxn changes x & y limits
-#scale_x_continuous(breaks = seq(0,60,by=5))#sets spacing in x-axis
-
-# test01 <- p1 %>% 
-#   select (TC) 
-
-
-
- # filter(Name == "Oleic acid")
-
-#is.na(x)) %>% 
-  %>% 
- # grepl (TC =="NA", "18", " ")
-
-#  test01
 
