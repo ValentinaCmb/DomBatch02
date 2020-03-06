@@ -235,8 +235,8 @@ batch02.pop <- batch02.values.noplasm %>%
  
 # this plot (still ugly) is based on areas not on concentrations (although it is in the name, please disregard it)
 
-batch01.plot.conc <-  ggplot(batch02.pop, aes(`Class`, log(pqn))) + 
-  geom2boxplot(aes(fill= `population`), position = position_dodge(width=0.75)) +
+batch02.plot.conc <-  ggplot(batch02.pop, aes(`Class`, log(pqn))) + 
+  geom_boxplot(aes(fill= `population`), position = position_dodge(width=0.75)) +
   #facet_wrap(~Class, scales ="free") + 
   theme(plot.subtitle = element_text(vjust = 1), 
     plot.caption = element_text(vjust = 1), 
@@ -259,10 +259,9 @@ batch02.sum <-  batch02.pop %>%
   mutate(sumpqn = sum(pqn)) %>% 
   mutate(population = tolower(population))
          
-         
- unique(batch02.sum$population)        
-
   
+unique(batch02.sum$population)        
+
 #sum_conc_mgml = sum(conc_mgmL_compounds))
 
 batch02.sum #this is THE data for statistical analysis of ALL lipids based on normalised areas
