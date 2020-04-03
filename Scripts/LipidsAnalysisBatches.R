@@ -116,7 +116,7 @@ T01 <- LSdata01 %>%
 
 CDdata <- read_tsv("Data/CompDiscoBatch02Results12Dec.csv", col_types = cols(Name = col_character()))
 
-key <- read_csv("Data/Table_CD11Dec.csv", col_types = cols(Name = col_character())) %>%  
+key <- read_csv("Data/Table_CD11Decv.csv", col_types = cols(Name = col_character())) %>%  
   select(Name, Class, FA, `FA Group Key`) %>% 
   unique()
   # rename(LSFormula= Formula) %>% 
@@ -213,7 +213,9 @@ Batch02Standards <- read_csv("./Data/Batch02Standards.csv")
 view(Batch02Standards)
 
 batch02.standards.selected <- Batch02Standards %>% 
-  select(Class, StandardsName, Conc, slope, intercept)
+  #select(Class, StandardsName, Conc, slope, intercept)%>% 
+  select(Class, slope, intercept)%>% 
+  unique()
 
 
 # calculate the concentrations of the compounds in Batch01 based on the standards in Batch01
@@ -223,7 +225,7 @@ batch02.values.selected <-  p1.selected %>%
   mutate(conc_mgmL_compounds = as.numeric(exp((log(Area) - intercept)/ slope))) %>% 
   select(-slope, - intercept) %>% 
   filter(!Class %in% c("LPE", "LPI", "LPS", "PA")) %>% 
-  filter(!is.na(Class))
+  filter(!is.na(Class)) 
 
 #check elimination of those lipids with unique
 unique(batch02.values.selected$Class)
