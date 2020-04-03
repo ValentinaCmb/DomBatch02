@@ -114,7 +114,7 @@ T01 <- LSdata01 %>%
 # now that CD has run we want to plot this data and see what makes sense
 #    !!! replace Batch01 with Batch02 accordingly in the following script !!!!!!!
 
-CDdata <- read_tsv("Data/CompDiscoBatch02Results12Dec.csv", col_types = cols(Name = col_character()))
+CDdata <- read_tsv("Data/CompDiscoFILTERBatch02Results.csv", col_types = cols(Name = col_character()))
 
 key <- read_csv("Data/Table_CD11Dec.csv", col_types = cols(Name = col_character())) %>%  
   select(Name, Class, FA, `FA Group Key`) %>% 
@@ -164,7 +164,6 @@ Batch02 <- res %>%
   select(Name, Formula, Class, `FA Group Key`, TC, DB, count, `Molecular Weight`, Sample, `RT [min]`, Area, pqn, Area2)
 
 write_csv(Batch02, path = "Data/Batch02.csv")
-view(Batch02)
 
 
 # Pre-final adjustment (still need to remove NA)
